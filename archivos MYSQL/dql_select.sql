@@ -96,18 +96,121 @@ limit 5;
 
 --    • Calcula el precio promedio de venta por género.
 
-select t.GenreId, AVG(il.UnitPrice) as precio_promedio
+select g.GenreId, g.Name as Genero, AVG(il.UnitPrice) as Precio_Promedio
 from InvoiceLine il 
 join Track t on il.TrackId = t.TrackId 
-group by t.GenreId;
+join Genre g on t.GenreId = g.GenreId
+group by g.GenreId, g.Name
+order by Precio_Promedio desc;
+
+--    • Lista las cinco canciones más largas vendidas en el último año.
+
+select t.Name as Cancion, t.Milliseconds / 1000 as Duracion_Segundos, SUM(il.Quantity) as Cantidad_Vendida
+from InvoiceLine il
+join Track t on il.TrackId = t.TrackId
+join Invoice i on il.InvoiceId = i.InvoiceId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+group by t.Name, t.Milliseconds
+order by t.Milliseconds desc
+limit 5;
 
 
---    • Lista las cinco canciones más largas vendidas en el último año.
---    • Muestra los clientes que compraron más canciones de Jazz.
+--    • Muestra los clientes que compraron más canciones de Jazz.
+
+select c.CustomerId, c.FirstName, c.LastName, SUM(il.Quantity) as cantidad_comprada
+from InvoiceLine il
+join Invoice i on il.InvoiceId = i.InvoiceId
+join Customer c on i.CustomerId = c.CustomerId
+join Track t on il.TrackId = t.TrackId
+join Genre g on t.GenreId = g.GenreId
+where g.Name = "Jazz"
+group by c.CustomerId, c.FirstName, c.LastName
+order by cantidad_comprada desc;
+
 --    • Encuentra la cantidad total de minutos comprados por cada cliente en el último mes.
+
+select c.CustomerId, c.FirstName, c.LastName, SUM(t.Milliseconds) / 60000 as Minutos_Comprados
+from InvoiceLine il
+join Invoice i on il.InvoiceId = i.InvoiceId
+join Customer c on i.CustomerId = c.CustomerId
+join Track t on il.TrackId = t.TrackId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+group by c.CustomerId, c.FirstName, c.LastName
+order by Minutos_Comprados desc;
+
+
 --    • Muestra el número de ventas diarias de canciones en cada mes del último trimestre.
+
+select 
+    DATE(i.InvoiceDate) as Fecha, 
+    MONTH(i.InvoiceDate) as Mes, 
+    COUNT(il.InvoiceLineId) as Ventas_Diarias
+from InvoiceLine il
+join Invoice i on il.InvoiceId = i.InvoiceId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+group by Fecha, Mes
+order by Fecha;
+
 --    • Calcula el total de ventas por cada vendedor en el último semestre.
---    • Encuentra el cliente que ha realizado la compra más cara en el último año.
---    • Lista los cinco álbumes con más canciones vendidas durante los últimos tres meses.
---    • Obtén la cantidad de canciones vendidas por cada género en el último mes.
---    • Lista los clientes que no han comprado nada en el último año.
+
+select 
+    e.EmployeeId, 
+    e.FirstName, 
+    e.LastName, 
+    SUM(i.Total) as Total_Ventas
+from Invoice i
+join Customer c on i.CustomerId = c.CustomerId
+join Employee e on c.SupportRepId = e.EmployeeId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+group by e.EmployeeId, e.FirstName, e.LastName
+order by Total_Ventas desc;
+
+--    • Encuentra el cliente que ha realizado la compra más cara en el último año.
+select 
+    c.CustomerId, 
+    c.FirstName, 
+    c.LastName, 
+    MAX(i.Total) as Compra_Mas_Cara
+from Invoice i
+join Customer c on i.CustomerId = c.CustomerId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+group by c.CustomerId, c.FirstName, c.LastName
+order by Compra_Mas_Cara desc
+limit 1;
+
+--    • Lista los cinco álbumes con más canciones vendidas durante los últimos tres meses.
+select 
+    a.AlbumId, 
+    a.Title, 
+    SUM(il.Quantity) as Canciones_Vendidas
+from InvoiceLine il
+join Track t on il.TrackId = t.TrackId
+join Album a on t.AlbumId = a.AlbumId
+join Invoice i on il.InvoiceId = i.InvoiceId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)
+group by a.AlbumId, a.Title
+order by Canciones_Vendidas desc
+limit 5;
+
+--    • Obtén la cantidad de canciones vendidas por cada género en el último mes.
+select 
+    g.GenreId, 
+    g.Name as Genero, 
+    SUM(il.Quantity) as Canciones_Vendidas
+from InvoiceLine il
+join Track t on il.TrackId = t.TrackId
+join Genre g on t.GenreId = g.GenreId
+join Invoice i on il.InvoiceId = i.InvoiceId
+where i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 1 MONTH)
+group by g.GenreId, g.Name
+order by Canciones_Vendidas desc;
+
+-- Lista los clientes que no han comprado nada en el último año.
+select 
+    c.CustomerId, 
+    c.FirstName, 
+    c.LastName
+from Customer c
+left join Invoice i on c.CustomerId = i.CustomerId 
+    and i.InvoiceDate >= DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+where i.InvoiceId IS NULL;
